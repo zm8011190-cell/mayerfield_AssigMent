@@ -22,24 +22,40 @@ export default function LoginPage() {
     setBusy(true);
     setError("");
 
-    const result = isSignUp
-      ? await authClient.signUp.email({
-          name: form.name,
-          email: form.email,
-          password: form.password,
-        })
-      : await authClient.signIn.email({
-          email: form.email,
-          password: form.password,
-        });
+    try {
+      const result = isSignUp
+        ? await authClient.signUp.email({
+            name: form.name,
+            email: form.email,
+            password: form.password,
+          })
+        : await authClient.signIn.email({
+            email: form.email,
+            password: form.password,
+          });
 
-    setBusy(false);
-    if (result.error) {
-      setError(result.error.message || "Something went wrong. Try again.");
-      return;
+      if (result.error) {
+        setError(result.error.message || "Something went wrong. Try again.");
+        return;
+      }
+
+      const callbackURL = new URLSearchParams(window.location.search).get("callbackURL");
+      const destination =
+        callbackURL?.startsWith("/") && !callbackURL.startsWith("//")
+          ? new URL(callbackURL, window.location.origin)
+          : null;
+      const nextPath =
+        destination?.origin === window.location.origin
+          ? `${destination.pathname}${destination.search}${destination.hash}`
+          : "/";
+      router.replace(nextPath);
+      router.refresh();
+    } catch (err) {
+      console.error("Authentication request failed:", err);
+      setError("Unable to connect. Check your connection and try again.");
+    } finally {
+      setBusy(false);
     }
-    router.push("/");
-    router.refresh();
   }
 
   const inputClass =
@@ -55,18 +71,34 @@ export default function LoginPage() {
         {isSignUp && (
           <label className="flex flex-col gap-1">
             Name
-            <input name="name" value={form.name} onChange={updateField} required className={inputClass} />
+            <input
+              name="name"
+              autoComplete="name"
+              value={form.name}
+              onChange={updateField}
+              required
+              className={inputClass}
+            />
           </label>
         )}
         <label className="flex flex-col gap-1">
           Email
-          <input name="email" type="email" value={form.email} onChange={updateField} required className={inputClass} />
+          <input
+            name="email"
+            type="email"
+            autoComplete="email"
+            value={form.email}
+            onChange={updateField}
+            required
+            className={inputClass}
+          />
         </label>
         <label className="flex flex-col gap-1">
           Password
           <input
             name="password"
             type="password"
+            autoComplete={isSignUp ? "new-password" : "current-password"}
             value={form.password}
             onChange={updateField}
             minLength={8}
@@ -84,6 +116,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={busy}
+          aria-busy={busy}
           className="rounded bg-ink px-6 py-3 font-semibold text-paper hover:bg-plum disabled:opacity-50"
         >
           {busy ? "Please wait" : isSignUp ? "Create account" : "Sign in"}
@@ -92,6 +125,7 @@ export default function LoginPage() {
 
       <button
         type="button"
+        disabled={busy}
         onClick={() => {
           setMode(isSignUp ? "signin" : "signup");
           setError("");

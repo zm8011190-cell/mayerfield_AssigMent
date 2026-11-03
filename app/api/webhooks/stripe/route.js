@@ -20,13 +20,35 @@ export async function POST(request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded" ||
+    event.type === "checkout.session.async_payment_failed" ||
+    event.type === "checkout.session.expired"
+  ) {
     const session = event.data.object;
-    if (session.payment_status === "paid") {
-      await db
-        .update(orders)
-        .set({ status: "paid" })
-        .where(and(eq(orders.id, Number(session.metadata.orderId)), eq(orders.status, "pending")));
+    const orderId = Number(session.metadata?.orderId);
+    if (Number.isSafeInteger(orderId) && orderId > 0) {
+      const status =
+        event.type === "checkout.session.expired" ||
+        event.type === "checkout.session.async_payment_failed"
+          ? "failed"
+          : session.payment_status === "paid"
+            ? "paid"
+            : null;
+
+      if (status) {
+        await db
+          .update(orders)
+          .set({ status })
+          .where(
+            and(
+              eq(orders.id, orderId),
+              eq(orders.stripeSessionId, session.id),
+              eq(orders.status, "pending")
+            )
+          );
+      }
     }
   }
 

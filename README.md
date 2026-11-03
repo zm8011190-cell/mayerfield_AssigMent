@@ -36,22 +36,16 @@ Marginalia Books is a full-stack storefront for an independent bookstore. Visito
 2. Copy `.env.example` to `.env` and set the database URL, a unique Better Auth secret, the app URL, and Stripe test keys:
 
    ```env
-   DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
+   DATABASE_URL=postgres://USER:PASSWORD@localhost:5432/marginalia_books
    BETTER_AUTH_SECRET=<a unique secret, at least 32 characters>
    BETTER_AUTH_URL=http://localhost:3000
    STRIPE_SECRET_KEY=sk_test_...
    STRIPE_WEBHOOK_SECRET=whsec_...
    ```
 
-   Generate a secret with `openssl rand -base64 32`. Never commit `.env` or use live Stripe keys for local development.
+   Use your database provider's connection string if PostgreSQL is hosted. Generate a secret with `openssl rand -base64 32`. Never commit `.env` or use live Stripe keys for local development.
 
-3. Generate the Better Auth database schema. This replaces the placeholder in `db/auth-schema.js` with the auth tables used by the app:
-
-   ```bash
-   npm run auth:generate
-   ```
-
-4. Generate and apply the database migrations, then insert the sample catalog and events:
+3. Generate and apply the database migrations, then insert the sample catalog and events. The Better Auth tables are defined in `db/auth-schema.js` and are included automatically. Seeding is safe to repeat and preserves existing books and events:
 
    ```bash
    npm run db:generate
@@ -59,13 +53,13 @@ Marginalia Books is a full-stack storefront for an independent bookstore. Visito
    npm run db:seed
    ```
 
-5. In another terminal, forward Stripe test webhooks to the local app and use the webhook signing secret printed by Stripe CLI as `STRIPE_WEBHOOK_SECRET`:
+4. In another terminal, forward Stripe test webhooks to the local app and use the webhook signing secret printed by Stripe CLI as `STRIPE_WEBHOOK_SECRET`:
 
    ```bash
    stripe listen --forward-to localhost:3000/api/webhooks/stripe
    ```
 
-6. Start the development server:
+5. Start the development server:
 
    ```bash
    npm run dev
@@ -93,4 +87,4 @@ db/           Drizzle schemas and catalog/event seed data
 lib/          Database, auth, Stripe, session, and fetch helpers
 ```
 
-The shopping cart is held in page state and is not persisted across reloads. The checkout total displayed in the browser is informational; the server calculates the amount used for payment from the database.
+The shopping cart is saved in browser local storage so it survives reloads and signing in, and is cleared after a paid order. The checkout total displayed in the browser is informational; the server calculates the amount used for payment from the database.

@@ -8,7 +8,7 @@ const WAIT_MS = 2000;
 
 export default function OrderStatus({ orderId }) {
   const [order, setOrder] = useState(null);
-  // checking | paid | pending | signin | error
+  // checking | paid | pending | failed | signin | error
   const [state, setState] = useState(orderId ? "checking" : "error");
 
   useEffect(() => {
@@ -32,6 +32,8 @@ export default function OrderStatus({ orderId }) {
         setOrder(data);
         if (data.status === "paid") {
           setState("paid");
+        } else if (data.status === "failed") {
+          setState("failed");
         } else if (tries >= MAX_TRIES) {
           setState("pending");
         } else {
@@ -48,6 +50,15 @@ export default function OrderStatus({ orderId }) {
       clearTimeout(timer);
     };
   }, [orderId]);
+
+  useEffect(() => {
+    if (state !== "paid") return;
+    try {
+      window.localStorage.removeItem("marginalia-books-cart");
+    } catch (err) {
+      console.error("Could not clear the completed order from the cart:", err);
+    }
+  }, [state]);
 
   return (
     <section className="mx-auto max-w-xl px-5 py-12 md:py-16">
@@ -80,10 +91,25 @@ export default function OrderStatus({ orderId }) {
         </>
       )}
 
+      {state === "failed" && (
+        <>
+          <h1 className="mb-2 font-heading text-3xl">Payment not completed</h1>
+          <p className="mb-8 text-muted">
+            This order was not paid. Your cart is still available if you would like to try again.
+          </p>
+        </>
+      )}
+
       {state === "signin" && (
         <>
           <h1 className="mb-2 font-heading text-3xl">Please sign in</h1>
-          <p className="mb-8 text-muted">Sign in to see your order.</p>
+          <p className="mb-4 text-muted">Sign in to see your order.</p>
+          <Link
+            href={`/login?callbackURL=${encodeURIComponent(`/success?order_id=${orderId}`)}`}
+            className="mb-8 inline-block rounded bg-ink px-6 py-3 font-semibold text-paper hover:bg-plum"
+          >
+            Sign in to view order
+          </Link>
         </>
       )}
 
